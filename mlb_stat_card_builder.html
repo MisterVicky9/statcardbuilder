@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>MLB Stat Card Builder</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --primary:#A71930;
+    --accent:#33CCCC;
+    --light:#DBCEAC;
+    --col1:#111111;
+    --col2:#A71930;
+    --col3:#5A5A5A;
+    --col4:#1A5FB4;
+    --col5:#2E7D32;
+    --col6:#6A1B9A;
+  }
+  *{box-sizing:border-box;}
+  html, body{ max-width:100%; overflow-x:hidden; }
+  body{
+    font-family:'Segoe UI', Arial, sans-serif;
+    background:#e8e8e8;
+    margin:0;
+    padding:24px;
+    color:#222;
+  }
+  @media (max-width:600px){
+    body{ padding:12px; }
+    h2.pagetitle{ font-size:18px; }
+  }
+  h2.pagetitle{margin:0 0 16px 0; font-size:22px;}
+  .layout{
+    display:flex;
+    gap:28px;
+    align-items:flex-start;
+    flex-wrap:wrap;
+  }
+  .controls{
+    flex:1 1 340px;
+    min-width:260px;
+    max-width:400px;
+    background:#fff;
+    border-radius:12px;
+    padding:18px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.12);
+  }
+  .controls h3{margin-top:0; font-size:15px; text-transform:uppercase; letter-spacing:.05em; color:#555;}
+  .controls label{display:block; font-size:13px; font-weight:600; margin:14px 0 4px;}
+  .controls select, .controls input[type=text]{
+    width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px;
+  }
+  .controls button{
+    cursor:pointer; border:none; border-radius:6px; padding:9px 14px;
+    font-size:13px; font-weight:600; margin-top:10px; margin-right:6px;
+    background:#222; color:#fff;
+  }
+  .controls button.secondary{background:#888;}
+  .controls button.export{background:var(--primary); width:100%; font-size:15px; padding:12px;}
+  .upload-box{
+    border:2px dashed #bbb; border-radius:8px; padding:14px; text-align:center;
+    font-size:13px; color:#777; margin-top:6px; cursor:pointer;
+  }
+  .hint{font-size:12px; color:#888; margin-top:4px; line-height:1.4;}
+
+  .card-wrapper{ background:#e8e8e8; padding:10px; }
+  #card{
+    width:920px;
+    background:#fff;
+    border:4px solid #0f0f0f;
+    border-radius:30px;
+    overflow:hidden;
+    position:relative;
+    box-shadow:0 4px 16px rgba(0,0,0,0.18);
+    transform-origin: top left;
+  }
+  .header{
+    background:var(--primary);
+    padding:26px 34px 22px 34px;
+    position:relative;
+    min-height:110px;
+  }
+  .header h1{
+    color:#fff;
+    font-size:38px;
+    margin:0;
+    font-weight:800;
+    outline:none;
+    max-width:640px;
+  }
+  .accent-strip{ height:9px; background:var(--accent); }
+  .photo-frame{
+    position:absolute;
+    top:16px; right:26px;
+    width:140px; height:140px;
+    border-radius:14px;
+    background:#fff;
+    border:4px solid #0f0f0f;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    cursor:pointer;
+  }
+  .photo-frame img{
+    width:100%; height:100%; object-fit:cover; object-position:center 30%;
+  }
+  .photo-frame .placeholder{
+    font-size:12px; color:#999; text-align:center; padding:6px; font-weight:600;
+  }
+  table{
+    width:100%; border-collapse:collapse;
+  }
+  thead td{
+    background:#0f0f0f; color:#fff; font-weight:800; text-align:center;
+    padding:16px 6px; font-size:16px; position:relative;
+  }
+  thead td.stat-col{ text-align:center; }
+  tbody td{
+    text-align:center; padding:13px 6px; font-weight:700; font-size:16px;
+    border-bottom:2px solid #0f0f0f; border-right: none;
+  }
+  tbody td.label-cell{ font-weight:700; }
+  td[contenteditable], th[contenteditable]{ outline:none; }
+  td[contenteditable]:hover, th[contenteditable]:hover{ background:rgba(0,0,0,0.04); }
+  .col-c1{ color:var(--col1); }
+  .col-c2{ color:var(--col2); }
+  .col-c3{ color:var(--col3); }
+  .col-c4{ color:var(--col4); }
+  .col-c5{ color:var(--col5); }
+  .col-c6{ color:var(--col6); }
+
+  .col-swatch{
+    width:22px; height:22px; border:none; padding:0; margin-top:6px; cursor:pointer; border-radius:4px;
+  }
+  .col-remove{
+    position:absolute; top:2px; right:4px; background:none; border:none; color:#fff;
+    font-size:13px; cursor:pointer; opacity:0.7;
+  }
+  .row-remove{
+    background:#c0392b; color:#fff; border:none; border-radius:50%;
+    width:22px; height:22px; font-size:12px; cursor:pointer; line-height:1;
+  }
+  .row-ctrl-col{ width:34px; }
+  .no-export{ }
+  #photoInput{ display:none; }
+
+  .crop-modal{
+    position:fixed; inset:0; background:rgba(0,0,0,0.6);
+    display:flex; align-items:center; justify-content:center;
+    z-index:999;
+  }
+  .crop-panel{
+    background:#fff; border-radius:12px; padding:22px;
+    display:flex; flex-direction:column; align-items:center;
+    box-shadow:0 8px 30px rgba(0,0,0,0.3);
+    max-width:92vw;
+    max-height:92vh;
+  }
+  .crop-panel h3{ margin:0 0 14px 0; font-size:16px; text-align:center; }
+  .crop-stage{
+    width:320px; height:320px; overflow:hidden; position:relative;
+    background:#222; border-radius:10px; cursor:grab;
+    touch-action:none;
+    max-width:100%;
+  }
+  .crop-stage.dragging{ cursor:grabbing; }
+  .crop-stage img{
+    position:absolute; top:0; left:0; max-width:none; max-height:none;
+    user-select:none; -webkit-user-drag:none;
+  }
+  .crop-controls{
+    display:flex; align-items:center; gap:10px; margin-top:16px; width:100%; max-width:320px;
+  }
+  .crop-controls input[type=range]{ flex:1; }
+  .crop-actions{ margin-top:16px; display:flex; gap:10px; }
+  .crop-actions button{
+    padding:10px 18px; border:none; border-radius:6px; font-weight:600; cursor:pointer;
+  }
+  .crop-actions .apply{ background:#2E7D32; color:#fff; }
+  .crop-actions .cancel{ background:#888; color:#fff; }
+  .crop-hint{ font-size:12px; color:#888; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<h2 class="pagetitle">MLB Player Stat Card Builder</h2>
+
+<div class="layout">
+  <div class="controls no-export-panel">
+    <h3>Team Theme</h3>
+    <select id="teamSelect"></select>
+
+    <h3 style="margin-top:20px;">Batter Photo</h3>
+    <div class="upload-box" onclick="document.getElementById('photoInput').click()">
+      Click to upload a photo (PNG/JPG)
+    </div>
+    <input type="file" id="photoInput" accept="image/*">
+
+    <h3 style="margin-top:20px;">Rows &amp; Columns</h3>
+    <button onclick="addRow()">+ Add Row</button>
+    <button class="secondary" onclick="addColumn()">+ Add Column</button>
+    <div class="hint">Click any title, header, or stat cell directly on the card to edit it. Use the small color square under each column header to recolor that column's numbers. Hover a row to see its remove (×) button.</div>
+
+    <h3 style="margin-top:20px;">Export</h3>
+    <button class="export" onclick="exportPNG()">Download PNG</button>
+    <div class="hint">Exports exactly what's shown on the card — controls, buttons, and swatches are excluded automatically.</div>
+  </div>
+
+  <div class="card-wrapper">
+    <div id="card">
+      <div class="header">
+        <h1 contenteditable="true">PLAYER NAME</h1>
+        <div class="photo-frame" id="photoFrame" onclick="document.getElementById('photoInput').click()">
+          <span class="placeholder">Click to<br>upload photo</span>
+        </div>
+      </div>
+      <div class="accent-strip"></div>
+      <table id="statTable">
+        <thead>
+          <tr id="headerRow">
+            <td class="stat-col" contenteditable="true">STAT</td>
+            <td class="col-c1">
+              <div contenteditable="true">COLUMN 1</div>
+              <input type="color" class="col-swatch no-export" value="#111111" oninput="setColColor(1,this.value)">
+            </td>
+            <td class="col-c2">
+              <div contenteditable="true">COLUMN 2</div>
+              <input type="color" class="col-swatch no-export" value="#A71930" oninput="setColColor(2,this.value)">
+            </td>
+            <td class="row-ctrl-col no-export"></td>
+          </tr>
+        </thead>
+        <tbody id="statBody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="crop-modal" id="cropModal" style="display:none;">
+  <div class="crop-panel">
+    <h3>Drag to reposition, use the slider to zoom</h3>
+    <div class="crop-stage" id="cropStage">
+      <img id="cropImg" src="">
+    </div>
+    <div class="crop-controls">
+      <span style="font-size:12px;">Zoom</span>
+      <input type="range" id="zoomSlider" min="1" max="4" step="0.01" value="1">
+    </div>
+    <div class="crop-actions">
+      <button class="apply" onclick="applyCrop()">Apply Crop</button>
+      <button class="cancel" onclick="closeCropModal()">Cancel</button>
+    </div>
+    <div class="crop-hint">The square shown here is exactly what will appear in the photo frame.</div>
+  </div>
+</div>
+
+<script>
+const TEAMS = {
+  "Arizona Diamondbacks": {primary:"#A71930", accent:"#33CCCC", light:"#DBCEAC"},
+  "Atlanta Braves": {primary:"#CE1141", accent:"#13274F", light:"#EAAA00"},
+  "Baltimore Orioles": {primary:"#DF4601", accent:"#000000", light:"#FFD9B3"},
+  "Boston Red Sox": {primary:"#BD3039", accent:"#0C2340", light:"#E3D4AD"},
+  "Chicago Cubs": {primary:"#0E3386", accent:"#CC3433", light:"#C9D8ED"},
+  "Chicago White Sox": {primary:"#27251F", accent:"#C4CED4", light:"#C4CED4"},
+  "Cincinnati Reds": {primary:"#C6011F", accent:"#000000", light:"#E3D4AD"},
+  "Cleveland Guardians": {primary:"#00385D", accent:"#E31937", light:"#C9D8ED"},
+  "Colorado Rockies": {primary:"#33006F", accent:"#C4CED4", light:"#C4CED4"},
+  "Detroit Tigers": {primary:"#0C2340", accent:"#FA4616", light:"#C9D8ED"},
+  "Houston Astros": {primary:"#002D62", accent:"#EB6E1F", light:"#C9D8ED"},
+  "Kansas City Royals": {primary:"#004687", accent:"#BD9B60", light:"#E3D4AD"},
+  "Los Angeles Angels": {primary:"#BA0021", accent:"#003263", light:"#E3D4AD"},
+  "Los Angeles Dodgers": {primary:"#005A9C", accent:"#EF3E42", light:"#C9D8ED"},
+  "Miami Marlins": {primary:"#00A3E0", accent:"#EF3340", light:"#000000"},
+  "Milwaukee Brewers": {primary:"#12284B", accent:"#FFC52F", light:"#FFC52F"},
+  "Minnesota Twins": {primary:"#002B5C", accent:"#D31145", light:"#C9D8ED"},
+  "New York Mets": {primary:"#002D72", accent:"#FF5910", light:"#C9D8ED"},
+  "New York Yankees": {primary:"#003087", accent:"#0C2340", light:"#C9D8ED"},
+  "Oakland Athletics": {primary:"#003831", accent:"#EFB21E", light:"#EFB21E"},
+  "Philadelphia Phillies": {primary:"#E81828", accent:"#002D72", light:"#E3D4AD"},
+  "Pittsburgh Pirates": {primary:"#FDB827", accent:"#27251F", light:"#FDB827"},
+  "San Diego Padres": {primary:"#2F241D", accent:"#FFC425", light:"#A2AAAD"},
+  "San Francisco Giants": {primary:"#FD5A1E", accent:"#27251F", light:"#E3D4AD"},
+  "Seattle Mariners": {primary:"#0C2C56", accent:"#005C5C", light:"#C9D8ED"},
+  "St. Louis Cardinals": {primary:"#C41E3A", accent:"#0C2340", light:"#E3D4AD"},
+  "Tampa Bay Rays": {primary:"#092C5C", accent:"#8FBCE6", light:"#F5D130"},
+  "Texas Rangers": {primary:"#003278", accent:"#C0111F", light:"#C9D8ED"},
+  "Toronto Blue Jays": {primary:"#134A8E", accent:"#1D2D5C", light:"#E8291C"},
+  "Washington Nationals": {primary:"#AB0003", accent:"#14225A", light:"#E3D4AD"}
+};
+
+const DEFAULT_ROWS = [
+  ["Stat","0","0"]
+];
+
+let colCount = 2; // number of data columns currently active
+const colorPalette = ["#111111","#A71930","#5A5A5A","#1A5FB4","#2E7D32","#6A1B9A"];
+
+function populateTeamSelect(){
+  const sel = document.getElementById('teamSelect');
+  Object.keys(TEAMS).forEach(name=>{
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  sel.value = "Arizona Diamondbacks";
+  sel.addEventListener('change', ()=>{
+    const t = TEAMS[sel.value];
+    document.documentElement.style.setProperty('--primary', t.primary);
+    document.documentElement.style.setProperty('--accent', t.accent);
+    document.documentElement.style.setProperty('--light', t.light);
+  });
+}
+
+function buildRow(cells){
+  const tr = document.createElement('tr');
+  const labelTd = document.createElement('td');
+  labelTd.className = 'label-cell';
+  labelTd.contentEditable = 'true';
+  labelTd.textContent = cells[0];
+  tr.appendChild(labelTd);
+  for(let i=1;i<=colCount;i++){
+    const td = document.createElement('td');
+    td.className = 'col-c'+i;
+    td.contentEditable = 'true';
+    td.textContent = cells[i] !== undefined ? cells[i] : '0';
+    tr.appendChild(td);
+  }
+  const ctrlTd = document.createElement('td');
+  ctrlTd.className = 'row-ctrl-col no-export';
+  const btn = document.createElement('button');
+  btn.className = 'row-remove';
+  btn.textContent = '×';
+  btn.onclick = ()=> tr.remove();
+  ctrlTd.appendChild(btn);
+  tr.appendChild(ctrlTd);
+  return tr;
+}
+
+function loadDefaultRows(){
+  const body = document.getElementById('statBody');
+  body.innerHTML = '';
+  DEFAULT_ROWS.forEach(r=> body.appendChild(buildRow(r)));
+}
+
+function addRow(){
+  const body = document.getElementById('statBody');
+  const blank = ['New Stat'];
+  body.appendChild(buildRow(blank));
+}
+
+function setColColor(n, value){
+  document.documentElement.style.setProperty('--col'+n, value);
+}
+
+function addColumn(){
+  if(colCount >= 6){ alert('Maximum of 6 columns supported.'); return; }
+  colCount += 1;
+  const n = colCount;
+  const color = colorPalette[n-1] || '#333333';
+
+  // header cell
+  const headerRow = document.getElementById('headerRow');
+  const ctrlCell = headerRow.querySelector('.row-ctrl-col');
+  const th = document.createElement('td');
+  th.className = 'col-c'+n;
+  th.style.position = 'relative';
+  const label = document.createElement('div');
+  label.contentEditable = 'true';
+  label.textContent = 'NEW COL';
+  const swatch = document.createElement('input');
+  swatch.type = 'color';
+  swatch.className = 'col-swatch no-export';
+  swatch.value = color;
+  swatch.oninput = ()=> setColColor(n, swatch.value);
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'col-remove no-export';
+  removeBtn.textContent = '×';
+  removeBtn.onclick = ()=> removeColumn(n);
+  th.appendChild(label);
+  th.appendChild(document.createElement('br'));
+  th.appendChild(swatch);
+  th.appendChild(removeBtn);
+  headerRow.insertBefore(th, ctrlCell);
+  setColColor(n, color);
+
+  // body cells
+  const body = document.getElementById('statBody');
+  Array.from(body.children).forEach(tr=>{
+    const ctrl = tr.querySelector('.row-ctrl-col');
+    const td = document.createElement('td');
+    td.className = 'col-c'+n;
+    td.contentEditable = 'true';
+    td.textContent = '0';
+    tr.insertBefore(td, ctrl);
+  });
+}
+
+function removeColumn(n){
+  const headerRow = document.getElementById('headerRow');
+  const th = headerRow.querySelector('.col-c'+n);
+  if(th) th.remove();
+  const body = document.getElementById('statBody');
+  Array.from(body.children).forEach(tr=>{
+    const td = tr.querySelector('.col-c'+n);
+    if(td) td.remove();
+  });
+}
+
+function handlePhotoUpload(file){
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    openCropModal(e.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById('photoInput').addEventListener('change', (e)=>{
+  if(e.target.files && e.target.files[0]){
+    handlePhotoUpload(e.target.files[0]);
+    e.target.value = ''; // allow re-selecting the same file later
+  }
+});
+
+// ---- Manual crop tool ----
+let STAGE_SIZE = 320;
+const OUTPUT_SIZE = 400;
+let cropState = { naturalW:0, naturalH:0, baseScale:1, zoom:1, offX:0, offY:0 };
+let dragState = { active:false, startX:0, startY:0, startOffX:0, startOffY:0 };
+
+function openCropModal(dataUrl){
+  const modal = document.getElementById('cropModal');
+  const img = document.getElementById('cropImg');
+  const slider = document.getElementById('zoomSlider');
+  const stage = document.getElementById('cropStage');
+
+  STAGE_SIZE = Math.max(200, Math.min(320, window.innerWidth - 80, window.innerHeight - 260));
+  stage.style.width = STAGE_SIZE + 'px';
+  stage.style.height = STAGE_SIZE + 'px';
+
+  img.onload = ()=>{
+    cropState.naturalW = img.naturalWidth;
+    cropState.naturalH = img.naturalHeight;
+    cropState.baseScale = Math.max(STAGE_SIZE / cropState.naturalW, STAGE_SIZE / cropState.naturalH);
+    cropState.zoom = 1;
+    slider.value = 1;
+    centerImage();
+    renderCropImage();
+  };
+  img.src = dataUrl;
+  modal.style.display = 'flex';
+}
+
+function closeCropModal(){
+  document.getElementById('cropModal').style.display = 'none';
+}
+
+function centerImage(){
+  const scale = cropState.baseScale * cropState.zoom;
+  const dw = cropState.naturalW * scale;
+  const dh = cropState.naturalH * scale;
+  cropState.offX = (STAGE_SIZE - dw) / 2;
+  cropState.offY = (STAGE_SIZE - dh) / 2;
+}
+
+function clampOffsets(){
+  const scale = cropState.baseScale * cropState.zoom;
+  const dw = cropState.naturalW * scale;
+  const dh = cropState.naturalH * scale;
+  const minX = STAGE_SIZE - dw, maxX = 0;
+  const minY = STAGE_SIZE - dh, maxY = 0;
+  cropState.offX = Math.min(maxX, Math.max(minX, cropState.offX));
+  cropState.offY = Math.min(maxY, Math.max(minY, cropState.offY));
+}
+
+function renderCropImage(){
+  const img = document.getElementById('cropImg');
+  const scale = cropState.baseScale * cropState.zoom;
+  img.style.width = (cropState.naturalW * scale) + 'px';
+  img.style.height = (cropState.naturalH * scale) + 'px';
+  img.style.left = cropState.offX + 'px';
+  img.style.top = cropState.offY + 'px';
+}
+
+document.getElementById('zoomSlider').addEventListener('input', (e)=>{
+  cropState.zoom = parseFloat(e.target.value);
+  clampOffsets();
+  renderCropImage();
+});
+
+const cropStageEl = document.getElementById('cropStage');
+
+function dragStart(x, y){
+  dragState.active = true;
+  dragState.startX = x; dragState.startY = y;
+  dragState.startOffX = cropState.offX; dragState.startOffY = cropState.offY;
+  cropStageEl.classList.add('dragging');
+}
+function dragMove(x, y){
+  if(!dragState.active) return;
+  cropState.offX = dragState.startOffX + (x - dragState.startX);
+  cropState.offY = dragState.startOffY + (y - dragState.startY);
+  clampOffsets();
+  renderCropImage();
+}
+function dragEnd(){
+  dragState.active = false;
+  cropStageEl.classList.remove('dragging');
+}
+
+cropStageEl.addEventListener('mousedown', (e)=> dragStart(e.clientX, e.clientY));
+window.addEventListener('mousemove', (e)=> dragMove(e.clientX, e.clientY));
+window.addEventListener('mouseup', dragEnd);
+
+cropStageEl.addEventListener('touchstart', (e)=>{
+  const t = e.touches[0]; dragStart(t.clientX, t.clientY);
+}, {passive:true});
+window.addEventListener('touchmove', (e)=>{
+  if(dragState.active){ const t = e.touches[0]; dragMove(t.clientX, t.clientY); }
+}, {passive:true});
+window.addEventListener('touchend', dragEnd);
+
+function applyCrop(){
+  const img = document.getElementById('cropImg');
+  const scale = cropState.baseScale * cropState.zoom;
+  const sx = -cropState.offX / scale;
+  const sy = -cropState.offY / scale;
+  const sSize = STAGE_SIZE / scale;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = OUTPUT_SIZE;
+  canvas.height = OUTPUT_SIZE;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, sx, sy, sSize, sSize, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+
+  const croppedDataUrl = canvas.toDataURL('image/png');
+  const frame = document.getElementById('photoFrame');
+  frame.innerHTML = '';
+  const finalImg = document.createElement('img');
+  finalImg.src = croppedDataUrl;
+  finalImg.style.objectPosition = 'center center';
+  frame.appendChild(finalImg);
+
+  closeCropModal();
+}
+
+function exportPNG(){
+  const noExportEls = document.querySelectorAll('.no-export');
+  noExportEls.forEach(el=> el.style.visibility = 'hidden');
+  const ctrlCols = document.querySelectorAll('.row-ctrl-col');
+  ctrlCols.forEach(el=> el.style.visibility = 'hidden');
+
+  const card = document.getElementById('card');
+  const prevTransform = card.style.transform;
+  card.style.transform = 'none'; // always export at full native resolution
+
+  html2canvas(card, {scale:2, backgroundColor:'#ffffff'}).then(canvas=>{
+    card.style.transform = prevTransform;
+    noExportEls.forEach(el=> el.style.visibility = 'visible');
+    ctrlCols.forEach(el=> el.style.visibility = 'visible');
+    const link = document.createElement('a');
+    link.download = 'player-stat-card.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }).catch(err=>{
+    card.style.transform = prevTransform;
+    noExportEls.forEach(el=> el.style.visibility = 'visible');
+    ctrlCols.forEach(el=> el.style.visibility = 'visible');
+    alert('Export failed: ' + err);
+  });
+}
+
+// ---- Responsive scaling for mobile/web ----
+const cardEl = document.getElementById('card');
+const cardWrapperEl = document.querySelector('.card-wrapper');
+const controlsEl = document.querySelector('.controls');
+const CARD_NATIVE_WIDTH = 920;
+
+function updateCardScale(){
+  const isStacked = window.innerWidth < (CARD_NATIVE_WIDTH + 340 + 28 + 48);
+  const bodyPad = window.innerWidth < 600 ? 24 : 48;
+  let available;
+  if(isStacked){
+    available = window.innerWidth - bodyPad - 20; // minus card-wrapper padding
+  } else {
+    available = window.innerWidth - bodyPad - 20 - controlsEl.offsetWidth - 28;
+  }
+  available = Math.max(available, 240);
+  const scale = Math.min(1, available / CARD_NATIVE_WIDTH);
+
+  cardEl.style.transform = 'scale(' + scale + ')';
+
+  const naturalHeight = cardEl.offsetHeight; // offsetHeight ignores CSS transform
+  cardWrapperEl.style.width = (CARD_NATIVE_WIDTH * scale + 20) + 'px';
+  cardWrapperEl.style.height = (naturalHeight * scale + 20) + 'px';
+}
+
+let scaleRAF = false;
+function scheduleScaleUpdate(){
+  if(scaleRAF) return;
+  scaleRAF = true;
+  requestAnimationFrame(()=>{ updateCardScale(); scaleRAF = false; });
+}
+
+window.addEventListener('resize', scheduleScaleUpdate);
+
+const cardObserver = new MutationObserver(scheduleScaleUpdate);
+cardObserver.observe(cardEl, { childList:true, subtree:true, characterData:true });
+
+populateTeamSelect();
+loadDefaultRows();
+scheduleScaleUpdate();
+</script>
+
+</body>
+</html>
