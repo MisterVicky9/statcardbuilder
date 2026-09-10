@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Sports Stat Card Builder</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --primary:#A71930;
+    --accent:#33CCCC;
+    --light:#DBCEAC;
+    --col1:#111111;
+    --col2:#A71930;
+    --col3:#5A5A5A;
+    --col4:#1A5FB4;
+    --col5:#2E7D32;
+    --col6:#6A1B9A;
+  }
+  *{box-sizing:border-box;}
+  html, body{ max-width:100%; overflow-x:hidden; }
+  body{
+    font-family:'Segoe UI', Arial, sans-serif;
+    background:#e8e8e8;
+    margin:0;
+    padding:24px;
+    color:#222;
+  }
+  @media (max-width:600px){
+    body{ padding:12px; }
+    h2.pagetitle{ font-size:18px; }
+  }
+  h2.pagetitle{margin:0 0 16px 0; font-size:22px;}
+  .layout{
+    display:flex;
+    gap:28px;
+    align-items:flex-start;
+    flex-wrap:wrap;
+  }
+  .controls{
+    flex:1 1 340px;
+    min-width:260px;
+    max-width:400px;
+    background:#fff;
+    border-radius:12px;
+    padding:18px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.12);
+  }
+  .controls h3{margin-top:0; font-size:15px; text-transform:uppercase; letter-spacing:.05em; color:#555;}
+  .controls label{display:block; font-size:13px; font-weight:600; margin:14px 0 4px;}
+  .controls select, .controls input[type=text]{
+    width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px;
+  }
+  .controls button{
+    cursor:pointer; border:none; border-radius:6px; padding:9px 14px;
+    font-size:13px; font-weight:600; margin-top:10px; margin-right:6px;
+    background:#222; color:#fff;
+  }
+  .controls button.secondary{background:#888;}
+  .controls button.export{background:var(--primary); width:100%; font-size:15px; padding:12px;}
+  .upload-box{
+    border:2px dashed #bbb; border-radius:8px; padding:14px; text-align:center;
+    font-size:13px; color:#777; margin-top:6px; cursor:pointer;
+  }
+  .hint{font-size:12px; color:#888; margin-top:4px; line-height:1.4;}
+
+  .card-wrapper{ background:#e8e8e8; padding:10px; }
+  #card{
+    width:920px;
+    background:#fff;
+    border:4px solid #0f0f0f;
+    border-radius:30px;
+    overflow:hidden;
+    position:relative;
+    box-shadow:0 4px 16px rgba(0,0,0,0.18);
+    transform-origin: top left;
+  }
+  .header{
+    background:var(--primary);
+    padding:22px 34px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
+  }
+  .header h1{
+    color:#fff;
+    font-size:38px;
+    margin:0;
+    font-weight:800;
+    outline:none;
+    flex:1 1 auto;
+    min-width:0;
+  }
+  .accent-strip{ height:9px; background:var(--accent); }
+  .photo-frame{
+    flex-shrink:0;
+    cursor:pointer;
+  }
+  .photo-frame.empty{
+    width:auto; height:auto;
+  }
+  .photo-frame.empty .placeholder{
+    font-size:13px; color:#fff; text-decoration:underline; font-weight:600;
+    opacity:0.85; white-space:nowrap;
+  }
+  .photo-frame.has-photo{
+    width:140px; height:140px;
+    border-radius:14px;
+    background:#fff;
+    border:4px solid #0f0f0f;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  .photo-frame img{
+    width:100%; height:100%; object-fit:cover; object-position:center 30%;
+  }
+  table{
+    width:100%; border-collapse:collapse;
+  }
+  thead td{
+    background:#0f0f0f; color:#fff; font-weight:800; text-align:center;
+    padding:16px 6px; font-size:16px; position:relative;
+  }
+  thead td.stat-col{ text-align:center; }
+  tbody td{
+    text-align:center; padding:13px 6px; font-weight:700; font-size:16px;
+    border-bottom:2px solid #0f0f0f; border-right: none;
+  }
+  tbody td.label-cell{ font-weight:700; }
+  td[contenteditable], th[contenteditable]{ outline:none; }
+  td[contenteditable]:hover, th[contenteditable]:hover{ background:rgba(0,0,0,0.04); }
+  tbody td.col-c1{ color:var(--col1); }
+  tbody td.col-c2{ color:var(--col2); }
+  tbody td.col-c3{ color:var(--col3); }
+  tbody td.col-c4{ color:var(--col4); }
+  tbody td.col-c5{ color:var(--col5); }
+  tbody td.col-c6{ color:var(--col6); }
+  thead td.col-c1, thead td.col-c2, thead td.col-c3,
+  thead td.col-c4, thead td.col-c5, thead td.col-c6{ color:#fff; }
+
+  .col-controls{
+    display:flex; align-items:center; justify-content:center; gap:8px; margin-top:6px;
+  }
+  .col-swatch{
+    width:22px; height:22px; border:none; padding:0; cursor:pointer; border-radius:4px;
+  }
+  .col-remove{
+    background:#c0392b; color:#fff; border:none; border-radius:50%;
+    width:20px; height:20px; font-size:12px; cursor:pointer; line-height:1;
+    display:flex; align-items:center; justify-content:center; padding:0;
+  }
+  .row-remove{
+    background:#c0392b; color:#fff; border:none; border-radius:50%;
+    width:22px; height:22px; font-size:12px; cursor:pointer; line-height:1;
+  }
+  .row-ctrl-col{ width:34px; }
+  .no-export{ }
+  #photoInput{ display:none; }
+
+  .crop-modal{
+    position:fixed; inset:0; background:rgba(0,0,0,0.6);
+    display:flex; align-items:center; justify-content:center;
+    z-index:999;
+  }
+  .crop-panel{
+    background:#fff; border-radius:12px; padding:22px;
+    display:flex; flex-direction:column; align-items:center;
+    box-shadow:0 8px 30px rgba(0,0,0,0.3);
+    max-width:92vw;
+    max-height:92vh;
+  }
+  .crop-panel h3{ margin:0 0 14px 0; font-size:16px; text-align:center; }
+  .crop-stage{
+    width:320px; height:320px; overflow:hidden; position:relative;
+    background:#222; border-radius:10px; cursor:grab;
+    touch-action:none;
+    max-width:100%;
+  }
+  .crop-stage.dragging{ cursor:grabbing; }
+  .crop-stage img{
+    position:absolute; top:0; left:0; max-width:none; max-height:none;
+    user-select:none; -webkit-user-drag:none;
+  }
+  .crop-controls{
+    display:flex; align-items:center; gap:10px; margin-top:16px; width:100%; max-width:320px;
+  }
+  .crop-controls input[type=range]{ flex:1; }
+  .crop-actions{ margin-top:16px; display:flex; gap:10px; }
+  .crop-actions button{
+    padding:10px 18px; border:none; border-radius:6px; font-weight:600; cursor:pointer;
+  }
+  .crop-actions .apply{ background:#2E7D32; color:#fff; }
+  .crop-actions .cancel{ background:#888; color:#fff; }
+  .crop-hint{ font-size:12px; color:#888; margin-top:8px; }
+
+  .col-thumb{
+    cursor:pointer;
+    margin:0 auto 6px auto;
+  }
+  .col-thumb.empty{
+    width:auto; height:auto;
+  }
+  .col-thumb.empty .thumb-placeholder{
+    font-size:12px; color:#fff; text-decoration:underline; font-weight:600;
+    opacity:0.85; white-space:nowrap; line-height:normal;
+  }
+  .col-thumb.has-photo{
+    width:52px; height:52px; border-radius:10px; background:#fff;
+    border:3px solid #0f0f0f; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .col-thumb img{ width:100%; height:100%; object-fit:cover; }
+</style>
+</head>
+<body>
+
+<h2 class="pagetitle">Sports Stat Card Builder</h2>
+
+<div class="layout">
+  <div class="controls no-export-panel">
+    <h3>Team Theme</h3>
+    <select id="teamSelect"></select>
+
+    <h3 style="margin-top:20px;">Header Photo</h3>
+    <div class="upload-box" onclick="triggerPhotoUpload('main')">
+      Click to upload the header photo (PNG/JPG)
+    </div>
+    <input type="file" id="photoInput" accept="image/*">
+
+    <h3 style="margin-top:20px;">Rows &amp; Columns</h3>
+    <button onclick="addRow()">+ Add Row</button>
+    <button class="secondary" onclick="addColumn()">+ Add Column</button>
+    <div class="hint">Click any title, header, or stat cell directly on the card to edit it. Each column has its own small photo box for a headshot — click it to add or replace that player's photo, great for comparing multiple players side by side. Use the color square under each label to recolor that column's numbers. Hover a row to see its remove (×) button.</div>
+
+    <h3 style="margin-top:20px;">Export</h3>
+    <button class="export" onclick="exportPNG()">Download PNG</button>
+    <div class="hint">Exports exactly what's shown on the card — controls, buttons, and swatches are excluded automatically.</div>
+  </div>
+
+  <div class="card-wrapper">
+    <div id="card">
+      <div class="header">
+        <h1 contenteditable="true">PLAYER NAME</h1>
+        <div class="photo-frame empty" id="photoFrame" onclick="triggerPhotoUpload('main')">
+          <span class="placeholder">+ Add Photo</span>
+        </div>
+      </div>
+      <div class="accent-strip"></div>
+      <table id="statTable">
+        <thead>
+          <tr id="headerRow">
+            <td class="stat-col" contenteditable="true">STAT</td>
+            <td class="col-c1">
+              <div class="col-thumb empty" data-col="1" onclick="triggerPhotoUpload(1)"><span class="thumb-placeholder">+ Photo</span></div>
+              <div contenteditable="true">COLUMN 1</div>
+              <div class="col-controls no-export">
+                <input type="color" class="col-swatch" value="#111111" oninput="setColColor(1,this.value)">
+                <button class="col-remove" onclick="removeColumn(1)">×</button>
+              </div>
+            </td>
+            <td class="col-c2">
+              <div class="col-thumb empty" data-col="2" onclick="triggerPhotoUpload(2)"><span class="thumb-placeholder">+ Photo</span></div>
+              <div contenteditable="true">COLUMN 2</div>
+              <div class="col-controls no-export">
+                <input type="color" class="col-swatch" value="#A71930" oninput="setColColor(2,this.value)">
+                <button class="col-remove" onclick="removeColumn(2)">×</button>
+              </div>
+            </td>
+            <td class="row-ctrl-col no-export"></td>
+          </tr>
+        </thead>
+        <tbody id="statBody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="crop-modal" id="cropModal" style="display:none;">
+  <div class="crop-panel">
+    <h3>Drag to reposition, use the slider to zoom</h3>
+    <div class="crop-stage" id="cropStage">
+      <img id="cropImg" src="">
+    </div>
+    <div class="crop-controls">
+      <span style="font-size:12px;">Zoom</span>
+      <input type="range" id="zoomSlider" min="1" max="4" step="0.01" value="1">
+    </div>
+    <div class="crop-actions">
+      <button class="apply" onclick="applyCrop()">Apply Crop</button>
+      <button class="cancel" onclick="closeCropModal()">Cancel</button>
+    </div>
+    <div class="crop-hint">The square shown here is exactly what will appear in the photo frame.</div>
+  </div>
+</div>
+
+<script>
+const LEAGUE_TEAMS = {
+  "MLB": {
+    "Arizona Diamondbacks": {primary:"#A71930", accent:"#33CCCC", light:"#DBCEAC"},
+    "Atlanta Braves": {primary:"#CE1141", accent:"#13274F", light:"#EAAA00"},
+    "Baltimore Orioles": {primary:"#DF4601", accent:"#000000", light:"#FFD9B3"},
+    "Boston Red Sox": {primary:"#BD3039", accent:"#0C2340", light:"#E3D4AD"},
+    "Chicago Cubs": {primary:"#0E3386", accent:"#CC3433", light:"#C9D8ED"},
+    "Chicago White Sox": {primary:"#27251F", accent:"#C4CED4", light:"#C4CED4"},
+    "Cincinnati Reds": {primary:"#C6011F", accent:"#000000", light:"#E3D4AD"},
+    "Cleveland Guardians": {primary:"#00385D", accent:"#E31937", light:"#C9D8ED"},
+    "Colorado Rockies": {primary:"#33006F", accent:"#C4CED4", light:"#C4CED4"},
+    "Detroit Tigers": {primary:"#0C2340", accent:"#FA4616", light:"#C9D8ED"},
+    "Houston Astros": {primary:"#002D62", accent:"#EB6E1F", light:"#C9D8ED"},
+    "Kansas City Royals": {primary:"#004687", accent:"#BD9B60", light:"#E3D4AD"},
+    "Los Angeles Angels": {primary:"#BA0021", accent:"#003263", light:"#E3D4AD"},
+    "Los Angeles Dodgers": {primary:"#005A9C", accent:"#EF3E42", light:"#C9D8ED"},
+    "Miami Marlins": {primary:"#00A3E0", accent:"#EF3340", light:"#000000"},
+    "Milwaukee Brewers": {primary:"#12284B", accent:"#FFC52F", light:"#FFC52F"},
+    "Minnesota Twins": {primary:"#002B5C", accent:"#D31145", light:"#C9D8ED"},
+    "New York Mets": {primary:"#002D72", accent:"#FF5910", light:"#C9D8ED"},
+    "New York Yankees": {primary:"#003087", accent:"#0C2340", light:"#C9D8ED"},
+    "Oakland Athletics": {primary:"#003831", accent:"#EFB21E", light:"#EFB21E"},
+    "Philadelphia Phillies": {primary:"#E81828", accent:"#002D72", light:"#E3D4AD"},
+    "Pittsburgh Pirates": {primary:"#FDB827", accent:"#27251F", light:"#FDB827"},
+    "San Diego Padres": {primary:"#2F241D", accent:"#FFC425", light:"#A2AAAD"},
+    "San Francisco Giants": {primary:"#FD5A1E", accent:"#27251F", light:"#E3D4AD"},
+    "Seattle Mariners": {primary:"#0C2C56", accent:"#005C5C", light:"#C9D8ED"},
+    "St. Louis Cardinals": {primary:"#C41E3A", accent:"#0C2340", light:"#E3D4AD"},
+    "Tampa Bay Rays": {primary:"#092C5C", accent:"#8FBCE6", light:"#F5D130"},
+    "Texas Rangers": {primary:"#003278", accent:"#C0111F", light:"#C9D8ED"},
+    "Toronto Blue Jays": {primary:"#134A8E", accent:"#1D2D5C", light:"#E8291C"},
+    "Washington Nationals": {primary:"#AB0003", accent:"#14225A", light:"#E3D4AD"}
+  },
+  "NFL": {
+    "Arizona Cardinals": {primary:"#97233F", accent:"#000000", light:"#FFB612"},
+    "Atlanta Falcons": {primary:"#A71930", accent:"#000000", light:"#A5ACAF"},
+    "Baltimore Ravens": {primary:"#241773", accent:"#000000", light:"#9E7C0C"},
+    "Buffalo Bills": {primary:"#00338D", accent:"#C60C30", light:"#C9D8ED"},
+    "Carolina Panthers": {primary:"#0085CA", accent:"#101820", light:"#BFC0BF"},
+    "Chicago Bears": {primary:"#0B162A", accent:"#C83803", light:"#C9D8ED"},
+    "Cincinnati Bengals": {primary:"#FB4F14", accent:"#000000", light:"#FB4F14"},
+    "Cleveland Browns": {primary:"#311D00", accent:"#FF3C00", light:"#FF3C00"},
+    "Dallas Cowboys": {primary:"#041E42", accent:"#869397", light:"#B0B7BC"},
+    "Denver Broncos": {primary:"#FB4F14", accent:"#002244", light:"#FB4F14"},
+    "Detroit Lions": {primary:"#0076B6", accent:"#B0B7BC", light:"#C9D8ED"},
+    "Green Bay Packers": {primary:"#203731", accent:"#FFB612", light:"#FFB612"},
+    "Houston Texans": {primary:"#03202F", accent:"#A71930", light:"#A71930"},
+    "Indianapolis Colts": {primary:"#002C5F", accent:"#A2AAAD", light:"#C9D8ED"},
+    "Jacksonville Jaguars": {primary:"#101820", accent:"#D7A22A", light:"#006778"},
+    "Kansas City Chiefs": {primary:"#E31837", accent:"#FFB81C", light:"#FFB81C"},
+    "Las Vegas Raiders": {primary:"#000000", accent:"#A5ACAF", light:"#A5ACAF"},
+    "Los Angeles Chargers": {primary:"#0080C6", accent:"#FFC20E", light:"#FFC20E"},
+    "Los Angeles Rams": {primary:"#003594", accent:"#FFA300", light:"#FFA300"},
+    "Miami Dolphins": {primary:"#008E97", accent:"#FC4C02", light:"#005778"},
+    "Minnesota Vikings": {primary:"#4F2683", accent:"#FFC62F", light:"#FFC62F"},
+    "New England Patriots": {primary:"#002244", accent:"#C60C30", light:"#B0B7BC"},
+    "New Orleans Saints": {primary:"#D3BC8D", accent:"#101820", light:"#D3BC8D"},
+    "New York Giants": {primary:"#0B2265", accent:"#A71930", light:"#A71930"},
+    "New York Jets": {primary:"#125740", accent:"#000000", light:"#125740"},
+    "Philadelphia Eagles": {primary:"#004C54", accent:"#A5ACAF", light:"#ACC0C6"},
+    "Pittsburgh Steelers": {primary:"#FFB612", accent:"#101820", light:"#FFB612"},
+    "San Francisco 49ers": {primary:"#AA0000", accent:"#B3995D", light:"#B3995D"},
+    "Seattle Seahawks": {primary:"#002244", accent:"#69BE28", light:"#69BE28"},
+    "Tampa Bay Buccaneers": {primary:"#D50A0A", accent:"#34302B", light:"#FF7900"},
+    "Tennessee Titans": {primary:"#0C2340", accent:"#4B92DB", light:"#C8102E"},
+    "Washington Commanders": {primary:"#5A1414", accent:"#FFB612", light:"#FFB612"}
+  },
+  "NBA": {
+    "Atlanta Hawks": {primary:"#E03A3E", accent:"#26282A", light:"#C1D32F"},
+    "Boston Celtics": {primary:"#007A33", accent:"#000000", light:"#BA9653"},
+    "Brooklyn Nets": {primary:"#000000", accent:"#707271", light:"#707271"},
+    "Charlotte Hornets": {primary:"#1D1160", accent:"#00788C", light:"#A1A1A4"},
+    "Chicago Bulls": {primary:"#CE1141", accent:"#000000", light:"#CE1141"},
+    "Cleveland Cavaliers": {primary:"#6F263D", accent:"#041E42", light:"#FFB81C"},
+    "Dallas Mavericks": {primary:"#00538C", accent:"#002B5E", light:"#B8C4CA"},
+    "Denver Nuggets": {primary:"#0E2240", accent:"#8B2131", light:"#FEC524"},
+    "Detroit Pistons": {primary:"#C8102E", accent:"#1D42BA", light:"#BEC0C2"},
+    "Golden State Warriors": {primary:"#1D428A", accent:"#000000", light:"#FFC72C"},
+    "Houston Rockets": {primary:"#CE1141", accent:"#000000", light:"#C4CED4"},
+    "Indiana Pacers": {primary:"#002D62", accent:"#000000", light:"#FDBB30"},
+    "LA Clippers": {primary:"#C8102E", accent:"#1D428A", light:"#BEC0C2"},
+    "Los Angeles Lakers": {primary:"#552583", accent:"#000000", light:"#FDB927"},
+    "Memphis Grizzlies": {primary:"#12173F", accent:"#5D76A9", light:"#F5B112"},
+    "Miami Heat": {primary:"#98002E", accent:"#000000", light:"#F9A01B"},
+    "Milwaukee Bucks": {primary:"#00471B", accent:"#000000", light:"#EEE1C6"},
+    "Minnesota Timberwolves": {primary:"#0C2340", accent:"#236192", light:"#78BE20"},
+    "New Orleans Pelicans": {primary:"#0C2340", accent:"#C8102E", light:"#85714D"},
+    "New York Knicks": {primary:"#006BB6", accent:"#000000", light:"#F58426"},
+    "Oklahoma City Thunder": {primary:"#007AC1", accent:"#002D62", light:"#EF3B24"},
+    "Orlando Magic": {primary:"#0077C0", accent:"#000000", light:"#C4CED4"},
+    "Philadelphia 76ers": {primary:"#006BB6", accent:"#002B5C", light:"#ED174C"},
+    "Phoenix Suns": {primary:"#1D1160", accent:"#000000", light:"#E56020"},
+    "Portland Trail Blazers": {primary:"#E03A3E", accent:"#000000", light:"#E03A3E"},
+    "Sacramento Kings": {primary:"#5A2D81", accent:"#000000", light:"#63727A"},
+    "San Antonio Spurs": {primary:"#000000", accent:"#C4CED4", light:"#C4CED4"},
+    "Toronto Raptors": {primary:"#CE1141", accent:"#000000", light:"#A1A1A4"},
+    "Utah Jazz": {primary:"#002B5C", accent:"#000000", light:"#F9A01B"},
+    "Washington Wizards": {primary:"#002B5C", accent:"#000000", light:"#E31837"}
+  },
+  "NCAA (FBS)": {
+    "Boston College": {primary:"#98002E", accent:"#000000", light:"#BC9B6A"},
+    "California": {primary:"#003262", accent:"#000000", light:"#FDB515"},
+    "Clemson": {primary:"#F56600", accent:"#522D80", light:"#F56600"},
+    "Duke": {primary:"#003087", accent:"#000000", light:"#A7A9AC"},
+    "Florida State": {primary:"#782F40", accent:"#000000", light:"#CEB888"},
+    "Georgia Tech": {primary:"#B3A369", accent:"#003057", light:"#B3A369"},
+    "Louisville": {primary:"#AD0000", accent:"#000000", light:"#AD0000"},
+    "Miami (FL)": {primary:"#F47321", accent:"#005030", light:"#F47321"},
+    "NC State": {primary:"#CC0000", accent:"#000000", light:"#CC0000"},
+    "North Carolina": {primary:"#7BAFD4", accent:"#13294B", light:"#7BAFD4"},
+    "Pittsburgh": {primary:"#003594", accent:"#000000", light:"#FFB81C"},
+    "SMU": {primary:"#C8102E", accent:"#0033A0", light:"#C8102E"},
+    "Stanford": {primary:"#8C1515", accent:"#000000", light:"#8C1515"},
+    "Syracuse": {primary:"#D44500", accent:"#000000", light:"#D44500"},
+    "Virginia": {primary:"#232D4B", accent:"#E57200", light:"#E57200"},
+    "Virginia Tech": {primary:"#630031", accent:"#CF4420", light:"#CF4420"},
+    "Wake Forest": {primary:"#9E7E38", accent:"#000000", light:"#9E7E38"},
+    "Arizona": {primary:"#AB0520", accent:"#0C234B", light:"#AB0520"},
+    "Arizona State": {primary:"#8C1D40", accent:"#000000", light:"#FFC627"},
+    "Baylor": {primary:"#154734", accent:"#000000", light:"#FFB81C"},
+    "BYU": {primary:"#002E5D", accent:"#000000", light:"#C5C5C5"},
+    "Cincinnati": {primary:"#E00122", accent:"#000000", light:"#E00122"},
+    "Colorado": {primary:"#CFB87C", accent:"#000000", light:"#CFB87C"},
+    "Houston": {primary:"#C8102E", accent:"#000000", light:"#C8102E"},
+    "Iowa State": {primary:"#C8102E", accent:"#000000", light:"#F1BE48"},
+    "Kansas": {primary:"#0051BA", accent:"#E8000D", light:"#0051BA"},
+    "Kansas State": {primary:"#512888", accent:"#000000", light:"#A7A9AC"},
+    "Oklahoma State": {primary:"#FF7300", accent:"#000000", light:"#FF7300"},
+    "TCU": {primary:"#4D1979", accent:"#000000", light:"#A3A9AC"},
+    "Texas Tech": {primary:"#CC0000", accent:"#000000", light:"#CC0000"},
+    "UCF": {primary:"#000000", accent:"#FFC904", light:"#FFC904"},
+    "Utah": {primary:"#CC0000", accent:"#000000", light:"#CC0000"},
+    "West Virginia": {primary:"#002855", accent:"#000000", light:"#EAAA00"},
+    "Illinois": {primary:"#E84A27", accent:"#13294B", light:"#E84A27"},
+    "Indiana": {primary:"#990000", accent:"#000000", light:"#EEEDEB"},
+    "Iowa": {primary:"#FFCD00", accent:"#000000", light:"#FFCD00"},
+    "Maryland": {primary:"#E21833", accent:"#000000", light:"#FFD200"},
+    "Michigan": {primary:"#00274C", accent:"#000000", light:"#FFCB05"},
+    "Michigan State": {primary:"#18453B", accent:"#000000", light:"#FFFFFF"},
+    "Minnesota": {primary:"#7A0019", accent:"#000000", light:"#FFC72C"},
+    "Nebraska": {primary:"#E41C38", accent:"#000000", light:"#E41C38"},
+    "Northwestern": {primary:"#4E2A84", accent:"#000000", light:"#4E2A84"},
+    "Ohio State": {primary:"#BB0000", accent:"#666666", light:"#BB0000"},
+    "Oregon": {primary:"#154733", accent:"#000000", light:"#FEE123"},
+    "Penn State": {primary:"#041E42", accent:"#000000", light:"#FFFFFF"},
+    "Purdue": {primary:"#CEB888", accent:"#000000", light:"#CEB888"},
+    "Rutgers": {primary:"#CC0033", accent:"#000000", light:"#CC0033"},
+    "UCLA": {primary:"#2D68C4", accent:"#000000", light:"#F2A900"},
+    "USC": {primary:"#990000", accent:"#000000", light:"#FFC72C"},
+    "Washington": {primary:"#4B2E83", accent:"#000000", light:"#B7A57A"},
+    "Wisconsin": {primary:"#C5050C", accent:"#000000", light:"#C5050C"},
+    "Alabama": {primary:"#9E1B32", accent:"#000000", light:"#9E1B32"},
+    "Arkansas": {primary:"#9D2235", accent:"#000000", light:"#9D2235"},
+    "Auburn": {primary:"#0C2340", accent:"#E87722", light:"#E87722"},
+    "Florida": {primary:"#0021A5", accent:"#FA4616", light:"#FA4616"},
+    "Georgia": {primary:"#BA0C2F", accent:"#000000", light:"#BA0C2F"},
+    "Kentucky": {primary:"#0033A0", accent:"#000000", light:"#0033A0"},
+    "LSU": {primary:"#461D7C", accent:"#000000", light:"#FDD023"},
+    "Mississippi State": {primary:"#660000", accent:"#000000", light:"#660000"},
+    "Missouri": {primary:"#000000", accent:"#F1B82D", light:"#F1B82D"},
+    "Ole Miss": {primary:"#CE1126", accent:"#14213D", light:"#CE1126"},
+    "Oklahoma": {primary:"#841617", accent:"#000000", light:"#FDF9D8"},
+    "South Carolina": {primary:"#73000A", accent:"#000000", light:"#73000A"},
+    "Tennessee": {primary:"#FF8200", accent:"#000000", light:"#58595B"},
+    "Texas": {primary:"#BF5700", accent:"#333F48", light:"#BF5700"},
+    "Texas A&M": {primary:"#500000", accent:"#000000", light:"#500000"},
+    "Vanderbilt": {primary:"#866D4B", accent:"#000000", light:"#866D4B"},
+    "Army": {primary:"#000000", accent:"#D4BF91", light:"#D4BF91"},
+    "Charlotte": {primary:"#005035", accent:"#000000", light:"#A49665"},
+    "East Carolina": {primary:"#592A8A", accent:"#000000", light:"#FDC82F"},
+    "Florida Atlantic": {primary:"#003366", accent:"#000000", light:"#CC0000"},
+    "Memphis": {primary:"#003087", accent:"#000000", light:"#898D8D"},
+    "Navy": {primary:"#00205B", accent:"#000000", light:"#C5B783"},
+    "North Texas": {primary:"#00853E", accent:"#000000", light:"#00853E"},
+    "Rice": {primary:"#00205B", accent:"#000000", light:"#C6AA76"},
+    "South Florida": {primary:"#006747", accent:"#000000", light:"#CFC493"},
+    "Temple": {primary:"#9D2235", accent:"#000000", light:"#9D2235"},
+    "Tulane": {primary:"#006747", accent:"#418FDE", light:"#418FDE"},
+    "Tulsa": {primary:"#002D72", accent:"#000000", light:"#B9975B"},
+    "UAB": {primary:"#1E6B52", accent:"#000000", light:"#1E6B52"},
+    "UTSA": {primary:"#002A5C", accent:"#000000", light:"#F15A22"},
+    "Delaware": {primary:"#00539F", accent:"#000000", light:"#FFD200"},
+    "FIU": {primary:"#081E3F", accent:"#000000", light:"#B6862C"},
+    "Jacksonville State": {primary:"#A6192E", accent:"#000000", light:"#A6192E"},
+    "Kennesaw State": {primary:"#000000", accent:"#FFC629", light:"#FFC629"},
+    "Liberty": {primary:"#002D62", accent:"#000000", light:"#C41230"},
+    "Louisiana Tech": {primary:"#002F87", accent:"#000000", light:"#C8102E"},
+    "Middle Tennessee": {primary:"#0066CC", accent:"#000000", light:"#0066CC"},
+    "Missouri State": {primary:"#6E263D", accent:"#000000", light:"#6E263D"},
+    "New Mexico State": {primary:"#8C1D40", accent:"#000000", light:"#8C1D40"},
+    "Sam Houston": {primary:"#FF6600", accent:"#002E5D", light:"#FF6600"},
+    "UTEP": {primary:"#FF8200", accent:"#041E42", light:"#FF8200"},
+    "Western Kentucky": {primary:"#C8102E", accent:"#000000", light:"#C8102E"},
+    "Akron": {primary:"#041E42", accent:"#000000", light:"#A7A9AC"},
+    "Ball State": {primary:"#BA0C2F", accent:"#000000", light:"#BA0C2F"},
+    "Bowling Green": {primary:"#FE5000", accent:"#4F2C1D", light:"#FE5000"},
+    "Buffalo": {primary:"#005BBB", accent:"#000000", light:"#005BBB"},
+    "Central Michigan": {primary:"#6A0032", accent:"#000000", light:"#FFC82E"},
+    "Eastern Michigan": {primary:"#006633", accent:"#000000", light:"#006633"},
+    "Kent State": {primary:"#002664", accent:"#000000", light:"#EAAB00"},
+    "Miami (OH)": {primary:"#C41230", accent:"#000000", light:"#C41230"},
+    "Northern Illinois": {primary:"#BA0C2F", accent:"#000000", light:"#BA0C2F"},
+    "Ohio": {primary:"#00694E", accent:"#000000", light:"#00694E"},
+    "Toledo": {primary:"#00246B", accent:"#000000", light:"#FFCD00"},
+    "Western Michigan": {primary:"#7A2A2E", accent:"#000000", light:"#FFB612"},
+    "Air Force": {primary:"#003087", accent:"#000000", light:"#8A8D8F"},
+    "Boise State": {primary:"#0033A0", accent:"#D64309", light:"#D64309"},
+    "Colorado State": {primary:"#1E4D2B", accent:"#000000", light:"#C8C372"},
+    "Fresno State": {primary:"#DB0032", accent:"#002F87", light:"#DB0032"},
+    "Hawaii": {primary:"#024731", accent:"#000000", light:"#C8B568"},
+    "Nevada": {primary:"#003366", accent:"#000000", light:"#A7A9AC"},
+    "New Mexico": {primary:"#BA0C2F", accent:"#000000", light:"#A7A9AC"},
+    "San Diego State": {primary:"#A6192E", accent:"#000000", light:"#A6192E"},
+    "San Jose State": {primary:"#0055A2", accent:"#000000", light:"#E5A823"},
+    "UNLV": {primary:"#CF0A2C", accent:"#000000", light:"#CF0A2C"},
+    "Utah State": {primary:"#0F2439", accent:"#000000", light:"#0F2439"},
+    "Wyoming": {primary:"#492F24", accent:"#000000", light:"#FFC425"},
+    "Oregon State": {primary:"#DC4405", accent:"#000000", light:"#DC4405"},
+    "Washington State": {primary:"#981E32", accent:"#5E6A71", light:"#981E32"},
+    "Appalachian State": {primary:"#000000", accent:"#FFC72C", light:"#FFC72C"},
+    "Arkansas State": {primary:"#CC092F", accent:"#000000", light:"#CC092F"},
+    "Coastal Carolina": {primary:"#006F71", accent:"#000000", light:"#006F71"},
+    "Georgia Southern": {primary:"#011E41", accent:"#000000", light:"#011E41"},
+    "Georgia State": {primary:"#0039A6", accent:"#000000", light:"#0039A6"},
+    "James Madison": {primary:"#450084", accent:"#000000", light:"#CBB677"},
+    "Louisiana": {primary:"#CE181E", accent:"#000000", light:"#CE181E"},
+    "Louisiana-Monroe": {primary:"#840029", accent:"#000000", light:"#FFB81C"},
+    "Marshall": {primary:"#00B140", accent:"#000000", light:"#00B140"},
+    "Old Dominion": {primary:"#003057", accent:"#000000", light:"#A5ACAF"},
+    "South Alabama": {primary:"#00205B", accent:"#C41230", light:"#C41230"},
+    "Southern Miss": {primary:"#FFAA3C", accent:"#000000", light:"#FFAA3C"},
+    "Texas State": {primary:"#501214", accent:"#000000", light:"#C69214"},
+    "Troy": {primary:"#8A2432", accent:"#000000", light:"#A7A9AC"},
+    "Notre Dame": {primary:"#0C2340", accent:"#000000", light:"#C99700"},
+    "UConn": {primary:"#000E2F", accent:"#000000", light:"#E4002B"},
+    "UMass": {primary:"#881C1C", accent:"#000000", light:"#881C1C"}
+  }
+};
+
+// Flat lookup used everywhere else in the app
+const TEAMS = Object.assign({}, LEAGUE_TEAMS.MLB, LEAGUE_TEAMS.NFL, LEAGUE_TEAMS.NBA, LEAGUE_TEAMS["NCAA (FBS)"]);
+
+const DEFAULT_ROWS = [
+  ["Stat","0","0"]
+];
+
+let colCount = 2; // number of data columns currently active
+const colorPalette = ["#111111","#A71930","#5A5A5A","#1A5FB4","#2E7D32","#6A1B9A"];
+
+function populateTeamSelect(){
+  const sel = document.getElementById('teamSelect');
+  Object.keys(LEAGUE_TEAMS).forEach(league=>{
+    const group = document.createElement('optgroup');
+    group.label = league;
+    Object.keys(LEAGUE_TEAMS[league]).forEach(name=>{
+      const opt = document.createElement('option');
+      opt.value = name; opt.textContent = name;
+      group.appendChild(opt);
+    });
+    sel.appendChild(group);
+  });
+  sel.value = "Arizona Diamondbacks";
+  sel.addEventListener('change', ()=>{
+    const t = TEAMS[sel.value];
+    document.documentElement.style.setProperty('--primary', t.primary);
+    document.documentElement.style.setProperty('--accent', t.accent);
+    document.documentElement.style.setProperty('--light', t.light);
+  });
+}
+
+function buildRow(cells){
+  const tr = document.createElement('tr');
+  const labelTd = document.createElement('td');
+  labelTd.className = 'label-cell';
+  labelTd.contentEditable = 'true';
+  labelTd.textContent = cells[0];
+  tr.appendChild(labelTd);
+  for(let i=1;i<=colCount;i++){
+    const td = document.createElement('td');
+    td.className = 'col-c'+i;
+    td.contentEditable = 'true';
+    td.textContent = cells[i] !== undefined ? cells[i] : '0';
+    tr.appendChild(td);
+  }
+  const ctrlTd = document.createElement('td');
+  ctrlTd.className = 'row-ctrl-col no-export';
+  const btn = document.createElement('button');
+  btn.className = 'row-remove';
+  btn.textContent = '×';
+  btn.onclick = ()=> removeRow(tr);
+  ctrlTd.appendChild(btn);
+  tr.appendChild(ctrlTd);
+  return tr;
+}
+
+function removeRow(tr){
+  const body = document.getElementById('statBody');
+  if(body.children.length <= 1){
+    alert('At least 1 row is required.');
+    return;
+  }
+  tr.remove();
+}
+
+function loadDefaultRows(){
+  const body = document.getElementById('statBody');
+  body.innerHTML = '';
+  DEFAULT_ROWS.forEach(r=> body.appendChild(buildRow(r)));
+}
+
+function addRow(){
+  const body = document.getElementById('statBody');
+  const blank = ['New Stat'];
+  body.appendChild(buildRow(blank));
+}
+
+function setColColor(n, value){
+  document.documentElement.style.setProperty('--col'+n, value);
+}
+
+function addColumn(){
+  if(colCount >= 6){ alert('Maximum of 6 columns supported.'); return; }
+  colCount += 1;
+  const n = colCount;
+  const color = colorPalette[n-1] || '#333333';
+
+  // header cell
+  const headerRow = document.getElementById('headerRow');
+  const ctrlCell = headerRow.querySelector('.row-ctrl-col');
+  const th = document.createElement('td');
+  th.className = 'col-c'+n;
+
+  const thumb = document.createElement('div');
+  thumb.className = 'col-thumb empty';
+  thumb.setAttribute('data-col', n);
+  thumb.onclick = ()=> triggerPhotoUpload(n);
+  const thumbPlaceholder = document.createElement('span');
+  thumbPlaceholder.className = 'thumb-placeholder';
+  thumbPlaceholder.textContent = '+ Photo';
+  thumb.appendChild(thumbPlaceholder);
+
+  const label = document.createElement('div');
+  label.contentEditable = 'true';
+  label.textContent = 'NEW COL';
+
+  const controls = document.createElement('div');
+  controls.className = 'col-controls no-export';
+  const swatch = document.createElement('input');
+  swatch.type = 'color';
+  swatch.className = 'col-swatch';
+  swatch.value = color;
+  swatch.oninput = ()=> setColColor(n, swatch.value);
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'col-remove';
+  removeBtn.textContent = '×';
+  removeBtn.onclick = ()=> removeColumn(n);
+  controls.appendChild(swatch);
+  controls.appendChild(removeBtn);
+
+  th.appendChild(thumb);
+  th.appendChild(label);
+  th.appendChild(controls);
+  headerRow.insertBefore(th, ctrlCell);
+  setColColor(n, color);
+
+  // body cells
+  const body = document.getElementById('statBody');
+  Array.from(body.children).forEach(tr=>{
+    const ctrl = tr.querySelector('.row-ctrl-col');
+    const td = document.createElement('td');
+    td.className = 'col-c'+n;
+    td.contentEditable = 'true';
+    td.textContent = '0';
+    tr.insertBefore(td, ctrl);
+  });
+}
+
+function getActiveColumnCount(){
+  const headerRow = document.getElementById('headerRow');
+  return headerRow.querySelectorAll('td[class^="col-c"]').length;
+}
+
+function removeColumn(n){
+  if(getActiveColumnCount() <= 1){
+    alert('At least 1 column is required.');
+    return;
+  }
+  const headerRow = document.getElementById('headerRow');
+  const th = headerRow.querySelector('.col-c'+n);
+  if(th) th.remove();
+  const body = document.getElementById('statBody');
+  Array.from(body.children).forEach(tr=>{
+    const td = tr.querySelector('.col-c'+n);
+    if(td) td.remove();
+  });
+}
+
+// ---- Photo upload target tracking (main header photo, or a specific column headshot) ----
+let pendingUploadTarget = 'main';
+
+function triggerPhotoUpload(target){
+  pendingUploadTarget = target;
+  document.getElementById('photoInput').click();
+}
+
+function handlePhotoUpload(file){
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    openCropModal(e.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById('photoInput').addEventListener('change', (e)=>{
+  if(e.target.files && e.target.files[0]){
+    handlePhotoUpload(e.target.files[0]);
+    e.target.value = ''; // allow re-selecting the same file later
+  }
+});
+
+// ---- Manual crop tool ----
+let STAGE_SIZE = 320;
+const OUTPUT_SIZE = 400;
+let cropState = { naturalW:0, naturalH:0, baseScale:1, zoom:1, offX:0, offY:0 };
+let dragState = { active:false, startX:0, startY:0, startOffX:0, startOffY:0 };
+
+function openCropModal(dataUrl){
+  const modal = document.getElementById('cropModal');
+  const img = document.getElementById('cropImg');
+  const slider = document.getElementById('zoomSlider');
+  const stage = document.getElementById('cropStage');
+
+  STAGE_SIZE = Math.max(200, Math.min(320, window.innerWidth - 80, window.innerHeight - 260));
+  stage.style.width = STAGE_SIZE + 'px';
+  stage.style.height = STAGE_SIZE + 'px';
+
+  img.onload = ()=>{
+    cropState.naturalW = img.naturalWidth;
+    cropState.naturalH = img.naturalHeight;
+    cropState.baseScale = Math.max(STAGE_SIZE / cropState.naturalW, STAGE_SIZE / cropState.naturalH);
+    cropState.zoom = 1;
+    slider.value = 1;
+    centerImage();
+    renderCropImage();
+  };
+  img.src = dataUrl;
+  modal.style.display = 'flex';
+}
+
+function closeCropModal(){
+  document.getElementById('cropModal').style.display = 'none';
+}
+
+function centerImage(){
+  const scale = cropState.baseScale * cropState.zoom;
+  const dw = cropState.naturalW * scale;
+  const dh = cropState.naturalH * scale;
+  cropState.offX = (STAGE_SIZE - dw) / 2;
+  cropState.offY = (STAGE_SIZE - dh) / 2;
+}
+
+function clampOffsets(){
+  const scale = cropState.baseScale * cropState.zoom;
+  const dw = cropState.naturalW * scale;
+  const dh = cropState.naturalH * scale;
+  const minX = STAGE_SIZE - dw, maxX = 0;
+  const minY = STAGE_SIZE - dh, maxY = 0;
+  cropState.offX = Math.min(maxX, Math.max(minX, cropState.offX));
+  cropState.offY = Math.min(maxY, Math.max(minY, cropState.offY));
+}
+
+function renderCropImage(){
+  const img = document.getElementById('cropImg');
+  const scale = cropState.baseScale * cropState.zoom;
+  img.style.width = (cropState.naturalW * scale) + 'px';
+  img.style.height = (cropState.naturalH * scale) + 'px';
+  img.style.left = cropState.offX + 'px';
+  img.style.top = cropState.offY + 'px';
+}
+
+document.getElementById('zoomSlider').addEventListener('input', (e)=>{
+  cropState.zoom = parseFloat(e.target.value);
+  clampOffsets();
+  renderCropImage();
+});
+
+const cropStageEl = document.getElementById('cropStage');
+
+function dragStart(x, y){
+  dragState.active = true;
+  dragState.startX = x; dragState.startY = y;
+  dragState.startOffX = cropState.offX; dragState.startOffY = cropState.offY;
+  cropStageEl.classList.add('dragging');
+}
+function dragMove(x, y){
+  if(!dragState.active) return;
+  cropState.offX = dragState.startOffX + (x - dragState.startX);
+  cropState.offY = dragState.startOffY + (y - dragState.startY);
+  clampOffsets();
+  renderCropImage();
+}
+function dragEnd(){
+  dragState.active = false;
+  cropStageEl.classList.remove('dragging');
+}
+
+cropStageEl.addEventListener('mousedown', (e)=> dragStart(e.clientX, e.clientY));
+window.addEventListener('mousemove', (e)=> dragMove(e.clientX, e.clientY));
+window.addEventListener('mouseup', dragEnd);
+
+cropStageEl.addEventListener('touchstart', (e)=>{
+  const t = e.touches[0]; dragStart(t.clientX, t.clientY);
+}, {passive:true});
+window.addEventListener('touchmove', (e)=>{
+  if(dragState.active){ const t = e.touches[0]; dragMove(t.clientX, t.clientY); }
+}, {passive:true});
+window.addEventListener('touchend', dragEnd);
+
+function applyCrop(){
+  const img = document.getElementById('cropImg');
+  const scale = cropState.baseScale * cropState.zoom;
+  const sx = -cropState.offX / scale;
+  const sy = -cropState.offY / scale;
+  const sSize = STAGE_SIZE / scale;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = OUTPUT_SIZE;
+  canvas.height = OUTPUT_SIZE;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, sx, sy, sSize, sSize, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+
+  const croppedDataUrl = canvas.toDataURL('image/png');
+
+  if(pendingUploadTarget === 'main'){
+    const frame = document.getElementById('photoFrame');
+    frame.classList.remove('empty');
+    frame.classList.add('has-photo');
+    frame.innerHTML = '';
+    const finalImg = document.createElement('img');
+    finalImg.src = croppedDataUrl;
+    finalImg.style.objectPosition = 'center center';
+    frame.appendChild(finalImg);
+  } else {
+    const thumb = document.querySelector('.col-thumb[data-col="'+pendingUploadTarget+'"]');
+    if(thumb){
+      thumb.classList.remove('empty');
+      thumb.classList.add('has-photo');
+      thumb.innerHTML = '';
+      const finalImg = document.createElement('img');
+      finalImg.src = croppedDataUrl;
+      thumb.appendChild(finalImg);
+    }
+  }
+
+  closeCropModal();
+}
+
+function exportPNG(){
+  const noExportEls = document.querySelectorAll('.no-export');
+  noExportEls.forEach(el=> el.style.visibility = 'hidden');
+  const ctrlCols = document.querySelectorAll('.row-ctrl-col');
+  ctrlCols.forEach(el=> el.style.visibility = 'hidden');
+
+  const card = document.getElementById('card');
+  const prevTransform = card.style.transform;
+  card.style.transform = 'none'; // always export at full native resolution
+
+  html2canvas(card, {scale:2, backgroundColor:'#ffffff'}).then(canvas=>{
+    card.style.transform = prevTransform;
+    noExportEls.forEach(el=> el.style.visibility = 'visible');
+    ctrlCols.forEach(el=> el.style.visibility = 'visible');
+    const link = document.createElement('a');
+    link.download = 'player-stat-card.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }).catch(err=>{
+    card.style.transform = prevTransform;
+    noExportEls.forEach(el=> el.style.visibility = 'visible');
+    ctrlCols.forEach(el=> el.style.visibility = 'visible');
+    alert('Export failed: ' + err);
+  });
+}
+
+// ---- Responsive scaling for mobile/web ----
+const cardEl = document.getElementById('card');
+const cardWrapperEl = document.querySelector('.card-wrapper');
+const controlsEl = document.querySelector('.controls');
+const CARD_NATIVE_WIDTH = 920;
+
+function updateCardScale(){
+  const isStacked = window.innerWidth < (CARD_NATIVE_WIDTH + 340 + 28 + 48);
+  const bodyPad = window.innerWidth < 600 ? 24 : 48;
+  let available;
+  if(isStacked){
+    available = window.innerWidth - bodyPad - 20; // minus card-wrapper padding
+  } else {
+    available = window.innerWidth - bodyPad - 20 - controlsEl.offsetWidth - 28;
+  }
+  available = Math.max(available, 240);
+  const scale = Math.min(1, available / CARD_NATIVE_WIDTH);
+
+  cardEl.style.transform = 'scale(' + scale + ')';
+
+  const naturalHeight = cardEl.offsetHeight; // offsetHeight ignores CSS transform
+  cardWrapperEl.style.width = (CARD_NATIVE_WIDTH * scale + 20) + 'px';
+  cardWrapperEl.style.height = (naturalHeight * scale + 20) + 'px';
+}
+
+let scaleRAF = false;
+function scheduleScaleUpdate(){
+  if(scaleRAF) return;
+  scaleRAF = true;
+  requestAnimationFrame(()=>{ updateCardScale(); scaleRAF = false; });
+}
+
+window.addEventListener('resize', scheduleScaleUpdate);
+
+const cardObserver = new MutationObserver(scheduleScaleUpdate);
+cardObserver.observe(cardEl, { childList:true, subtree:true, characterData:true });
+
+populateTeamSelect();
+loadDefaultRows();
+scheduleScaleUpdate();
+</script>
+
+</body>
+</html>
